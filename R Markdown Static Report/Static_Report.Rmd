@@ -1,0 +1,371 @@
+---
+title: "Customized Product Perceptions Report"
+author: "Daniel Dasgupta"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_document:
+      theme: lumen
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment="", warning = FALSE, message = FALSE, tidy.opts=list(width.cutoff=55), tidy = TRUE)
+```
+
+```{r source}
+source("constants.R")
+source("functions.R")
+```
+
+
+```{r libraries, echo = FALSE, warning=FALSE, message=FALSE}
+library(data.table)
+library(DT)
+library(knitr)
+library(ggplot2)
+
+```
+
+```{r read_data}
+dat <- fread(input = "~/Desktop/Columbia Fall 2021/Capstone/capstone_wd/HW3/Data/mobile phone survey data.csv", verbose = FALSE )
+```
+
+
+```{r cleaning}
+dat.baseline <- unique(dat[, c("id", "Age", "Gender", "Income", "Region", "Persona")])
+dat.baseline$age_group <- cut(dat.baseline$Age, breaks = c(17,34,49,64,110), labels = c("18-34", "35-49", "50-64", "65+"))
+dat.baseline$income_group <- cut(dat.baseline$Income, breaks = c(0, 49999,74999, 99999,149999, 1000000000), labels = c("<50K", "50-75k", "75K-100K","100K-150K", "150K+"))
+
+
+dat$income_group <- cut(dat$Income, breaks = c(0, 49999,74999, 99999,149999, 1000000000),  labels = c("<50K", "50-75k", "75K-100K","100K-150K", "150K+"))
+dat$age_group <- cut(dat$Age, breaks = c(17,34,49,64,110), labels = c("18-34", "35-49", "50-64", "65+"))
+
+```
+
+
+```{r variables}
+
+respondent.variables <- c(age_group.name, gender.name, income_group.name, region.name, persona.name) 
+states.of.engagement <- c(awareness.name, consideration.name, consumption.name, satisfaction.name, advocacy.name)
+
+```
+
+# Report {.tabset}
+
+
+## Part 1:  Summary {.tabset}
+
+The following introduction contains a glimpse into the contents of the data.  
+
+
+### Data Descriptions
+
+
+The mobile phone data captures the survey's respondent outcomes through different product perception categories and also contains descriptive demographic variables for each respondent.  There can be multiple responses from a single respondent. 
+
+The following variables are captured:
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+<div class = "blue">
+* **ID - Respondent Identifier**   <br>
+* **Respondent Age**  <br>
+* **Gender** (Male/Female) <br>
+* **Income** <br>
+* **Region**  (Respondent Geographic Location: South, Northeast, Midwest, West)<br>
+* **Respondent Persona  **("Materialistic Meditator" "Outdoorsy Ombudsman" "Precociously Preoccupied" <br> 
+    "Ambivalent Adventurer" "Technological Triumphalist" "Consistent Compromiser")<br>
+* **Product**  ("Smartophonic" "MobilitEE" "Screenz" "Next Text" "Maybe Mobile" "App Map" "Phone Zone" "Speed Dials" 
+                "Communic Nation" "Mobzilla" "Phonatics" "Ring Ring" "No Buttons" "All Buttons" "Buzzdial" "Mobile Mayhem"                            "Triumphone" "Cellularity" "Pocket Dialz" "Off the Hook") <br>
+* **Perception Categories** ("User Friendly, "Stylish", "Expensive" ) <br>
+</div>
+
+
+
+### Data Summary  
+
+```{r}
+unique_count <- dat.baseline[, .N, .SD]
+count <- nrow(dat)
+mean <- dat[, .N, by =id ][, .(u = mean(N))]
+```
+
+The dataset contains **`r unique_count`** unique respondents.  In total, the dataset has **`r count`** records, with each respondent submitting **`r mean`** records each, on average. 
+
+
+
+#### Missing Values
+
+The dataset contains missing values.  The table below shows the count of NA values in each variable.  
+```{r}
+x <- colSums(is.na(dat))
+x <- as.data.frame(x)
+kable(x)
+
+
+
+```
+
+
+### Variable Distributions {.tabset}
+
+```{r, warning=FALSE, message=FALSE}
+
+par(mfrow = c(1,2))
+attach(dat.baseline)
+hist(Age)
+hist(Income)
+```
+
+**Gender**
+```{r}
+dat.baseline[, .N,  by = Gender ]
+```
+
+
+**Region**
+```{r}
+dat.baseline[, .N,  by = Region ]
+
+```
+
+**Persona**
+```{r}
+dat.baseline[, .N, by = Persona]
+```
+
+**Product**
+```{r}
+
+dat[, .N, by = Product]
+```
+
+
+## Part 2:  Specific Questions {.tabset}
+
+
+### Q1: Respondent Variables {.tabset}
+#### Age Group
+
+```{r q1_age.group}
+
+age_tab <- calc.perc(dat.baseline, variable = age_group.name)
+
+datatable(age_tab , options = list(dom = "ft"))
+
+```
+
+#### Gender
+
+```{r q1_gender}
+gender_tab <- calc.perc(dat.baseline, variable = gender.name)
+#(gender_tab, cols = "Perc", order = -1)
+
+datatable(gender_tab, options = list(dom = "ft"))
+
+```
+
+#### Income Group
+
+```{r q1_income.group}
+
+income_tab <- calc.perc(dat.baseline, variable=  income_group.name )
+setorderv(income_tab, cols = "income_group", order = 1)
+
+datatable(income_tab, options = list(dom = "ft"))
+
+```
+
+#### Region
+ 
+```{r region}
+region_tab <- calc.perc(dat.baseline, variable = region.name)
+#setorderv(region_tab, cols = "Perc", order = -1)
+
+datatable(region_tab, options = list(dom = "ft"))
+```
+
+#### Persona
+
+```{r persona}
+persona_tab <- calc.perc(dat.baseline, variable = persona.name)
+#setorderv(persona_tab, cols = "Perc", order = -1)
+
+datatable(persona_tab, options = list(dom = "ft"))
+```
+
+
+### Q2:  Segmented Outcomes {.tabset}
+
+#### Part A
+
+What are the top 5 products by Awareness rates in the Northeast?
+
+```{r q2_a}
+
+parta = engagement_rate_respondent(dat, states.of.engagement = awareness.name, respondent.variables = region.name, respond.variable.selection = "Northeast")
+
+datatable(parta, options = list(dom = "ft"))
+
+```
+
+#### Part B
+
+What are the top 5 products by Advocacy rates among females who earn at least $100,000?
+
+```{r q2_b}
+
+
+
+
+partb = engagement_rate_respondent_two(dat, states.of.engagement = advocacy.name, respondent.variables = gender.name, respond.variable.selection = "Female",        
+                                       respondent.variables1 = income.name,  respond.variable.selection1 = 100000 )
+datatable(partb, options = list(dom = "ft"))
+
+
+
+```
+
+
+### Q3:  Overall Brand Perceptions {.tabset}
+
+What are the top 5 brands by the overall average perception?
+
+
+```{r q3}
+
+
+
+positive.perception = dat[, lapply(X = .SD, FUN = "mean", na.rm = TRUE), .SDcols = 9:20, by = Product][, .SD, .SDcols = 1:9]
+
+negative.perception = dat[, lapply(X = .SD, FUN = "mean", na.rm = TRUE), .SDcols = 9:20, by = Product][, lapply(X = .SD, FUN = "invert_func"), .SDcols = 10:13, 
+                                                                                                       by=Product]
+
+all.perceptions = merge(positive.perception,negative.perception)
+
+top5_avg_perception = all.perceptions[, "Average_Perception" := rowMeans(.SD), .SDcols = 2:13][order(-rank(Average_Perception))][1:5,.(Product, Average_Perception)][, lapply(X = .SD, FUN = "round.numerics", digits = 2)]
+
+datatable(top5_avg_perception)
+```
+
+
+### Q4: Gaps in Outcomes {.tabset}
+
+
+#### Part A
+
+Which 5 products have the largest gap between the rate of consumption and the rate of awareness?
+
+```{r q4_a}
+
+engagement_rate_gap(dat, engagement1 =  consumption.name, engagement2 = awareness.name)
+
+```
+
+#### Part B
+
+Which 5 products have the largest gap between the rate of Awareness and the average Satisfaction?
+
+```{r q4_b}
+
+
+engagement_rate_outcome_gap(dat, engagement1 = awareness.name, outcome = satisfaction.name)
+```
+
+
+### Q5: Aggregated Engagement {.tabset}
+
+#### Part A
+
+How much impact does respondent's overall trends in awareness have for that person's awareness with Buzzdial phones?
+
+```{r q5_a}
+log_regression(dat, product_type =  buzzdial.name, engagement = awareness.name, alpha = 0.05, digits = 3)
+
+```
+
+#### Part B
+
+How much impact does respondent's overall trends in satisfaction have for that person's satisfaction with Buzzdial phones?
+
+```{r q5_b}
+
+
+lin_regression(dat, product_type =  buzzdial.name, engagement = satisfaction.name, digits = 3, alpha = 0.05)
+```
+
+
+
+## Part 3:  Reporting Engine {.tabset}
+
+This section of the work is available in the file ...
+
+## Part 4:  Opportunities {.tabset}
+
+### Q1
+
+* **How would you build on the reporting capabilities that you have created?  What would you design next? **
+
+For many, the aggregated engagement modelling tab in the dynamic report is the most exciting piece of this analysis.   In its current state, the user can completely customize the variable inputs and explore different relationships between aggregated outcomes for specific products.  Although on the surface this seems scientifically advanced, there are additional layers to improve the model and derive more accurate insights as there are too many subset options to test and/or inclusion of unnecessary predictors adds noise to the estimation.  
+
+To build on the reporting capabilities of these reports, I would design variable selection functionality (ex. dimension reduction)  to select the optimal subset of predictors to produce the most accurate models.  One method would be through stepwise procedures, e.i. backward elimination, forward selection, and stepwise regression, to determine which predictors should be included in the model.  I would also design a criterion based procedure that looks at predictors AIC, BIC, RSME to assess the quality of model fitting.   
+
+Another design to build on the reporting capabilities is to perform subgroup clustering to automatically discover natural groupings in the data.  Moreover, I would design functionality to use other prediction techniques such as RandomForest and XGBoost methods to determine if there are other meaningful insights from the data.  
+
+As analysts, on the backend we know that several variables are not significant and therefore create noise in the model.  Creating functionality for the end user that is alerted when the custom model they build isn't statistically significant and therefore should only be interpreted casually.  
+
+Finally, it would be helpful for users to see the analysis their peers have conducted on the application. I would built a "history" tab to show users what questions are being asked (and what those answers are) and what features of the application are being used. 
+
+### Q2
+
+* **What are some opportunities to learn valuable information and inform strategic decisions?  List a number of questions that you might explore.**
+
+There are several opportunities to learn valuable information and information strategic decisions. The follow is a list of questions worth exploring: 
+
+**Accuracy** <br>
+
+How would the top products by different perception rates by specific demographic respondent groups differ after standardizing the data, e.i. setting a minimum sample size, be compared to the current state? 
+
+Specifically, the report calculated Communic Nations as the top product by advocacy rate among females who earn at least 100k - 
+however, the data only contains 7 responses (in the same subgroup, 332 responses were recorded for Buzzdail). 
+
+**Repeat Customers**  <br>
+
+How many respondents are repeat customers?  Increasing profitability starts with loyal customers - ones that will spend more time on the website and will also act as a powerful customer acquisition tool as they market to new customers.  
+
+How did respondents get the products? through gift, on website, word of mouth?  Are they repeat customers?  
+
+How long do respondents keep the product? Is there high turnover?
+
+What form of marketing is most effective?
+
+**Sales & Price**  <br>
+
+How does price of products effect perception?  
+
+We can see that Screenz, Cellularity and Next Text had the highest overall average perception.  However, did these products have the highest sales?  What is the relationship between sales and product perception? 
+
+Are there certain products that specific customer segments purchase?  
+
+**Survey Design**  <br>
+
+How can the survey be designed better? For example, can each product have an individual survey in order to increase responses?  
+
+How is the survey being delivered (email, text etc) and at what time (right after product purchase? after viewing the product online?) 
+
+
+### Q3
+
+* **How would you approach other decision makers within the client's organization to assess their priorities and help them better utilize the available information?**
+
+First, I need to understand the vision and priorities of the client.  Decision makers come from various backgrounds and have different needs to solve problems. I would approach each decision maker differently, depending on their responsibilities. To start, I would make a list of decisions that could potentially arise in the coming quarter, mid-year review and annual report. 
+
+
+Understanding the priorities and goals of the client is important as there are varying strategy recommendations to consider.   For example, this report calculated Communic Nations as the top product by advocacy rate among females who earn at least 100k. However, the data only contains 7 responses for Communic Nations (all 1's), in comparison, Buzzdial had 332 responses.  Does the client want to continue investing in companies with low advocacy to control the market, or pivot and use these insights to drop products and focus on expanding products that are highly rated?  I would approach decision makers to help me understand their priorities and goal by presenting different strategies and then seek feedback.  
+
+Additionally, I would seek feedback from the client on this report and dashboard to make sure their expectations are met.  This would allow me to potentially adjust the functionality in the dashboard or specific analysis in the report, to create a resource that is more likely to be useful for the client.  
+
+
+### Q4
+
+**Video Submission:**  Make a 2-minute pitch to the client with a proposal for the next phase of work.  Include in your request a budget, a time frame, and staffing levels.  Explain why this proposal would be valuable for the client and worth the investment in your consulting services.  Please submit this answer as a short video recording. You may use any video recording program you feel comfortable with. The only requirements are that you are visible and audible in the video.  You may also submit a file of slides if that is part of your pitch.
