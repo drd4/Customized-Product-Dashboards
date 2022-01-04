@@ -1,0 +1,423 @@
+---
+title: "Customized Product Dasboard"
+output: flexdashboard::flex_dashboard
+runtime: shiny
+---
+
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(shiny)
+library(rmarkdown)
+library(knitr)
+library(Hmisc)
+#library(tidyverse)
+library(DT)
+library(data.table)
+library(shinyWidgets)
+assignInNamespace("cedta.override", c(data.table:::cedta.override,"rmarkdown"), "data.table")
+
+
+opts_chunk$set(echo = FALSE, comment="", warning = FALSE, message = FALSE, tidy.opts=list(width.cutoff=55), tidy = TRUE)
+
+```
+
+```{r source_functions}
+source("functions.R")
+```
+
+
+```{r constants}
+source("constants.R")
+```
+
+
+```{r read_data}
+dat <- fread(input = "~/Desktop/Columbia Fall 2021/Capstone/capstone_wd/HW3/Data/mobile phone survey data.csv", verbose = FALSE )
+
+```
+
+```{r customize_data}
+dat.baseline <- unique(dat[, c("id", "Age", "Gender", "Income", "Region", "Persona")])
+dat.baseline$income_group <- cut(dat.baseline$Income, breaks = c(0, 49999,74999, 99999,149999, 1000000000), labels = c("<50K", "50K-75k", "75K-100K","100K-150K", "150K+"))
+dat.baseline$age_group <- cut(dat.baseline$Age, breaks = c(17,34,49,64,110), labels = c("18-34", "35-49", "50-64", "65+"))
+
+dat$income_group <- cut(dat$Income, breaks = c(0, 49999,74999, 99999,149999, 1000000000), labels = c("<50K", "50K-75k", "75K-100K","100K-150K", "150K+"))
+dat$age_group <- cut(dat$Age, breaks = c(17,34,49,64,110), labels = c("18-34", "35-49", "50-64", "65+"))
+```
+
+```{r variables}
+
+unique.products <- dat[, unique(get(product.name))]
+respondent.variables <- c(age_group.name, gender.name, income_group.name, region.name, persona.name) 
+states.of.engagement <- c(awareness.name, consideration.name, consumption.name, satisfaction.name, advocacy.name)
+
+age_group.variables <- unique(dat$age_group)
+income_group.variables <- unique(dat$income_group)
+gender_group.variables <- unique(dat$Gender)
+region.variables <-unique(dat$Region)
+persona.variables <- unique(dat$Persona)
+
+
+bp.traits <- names(dat)[grep(pattern = bp.pattern, x = names(dat))]
+
+
+positive_bp_traits <- bp.traits[1:8]
+negative_bp_traits <- bp.traits[9:12]
+
+
+
+```
+
+
+Instructions
+=====================================  
+
+This application has 5 tabs that allows the user to investigate respondent demographics, product engagement, brand perceptions, outcome gaps, and linear/logistic regressions.  The user has complete control of the subgroups and outcomes used for each tab.  We recommend opening the application in your browser for optimal viewing experience. 
+
+Q1 Respondent Demographics
+===================================
+
+Row {.sidebar}
+-------------------------------------
+Instructions:  Select a variable to customize graph that depicts the percentages of respondents in each category for that variable.  
+
+```{r q1_input}
+inputPanel(
+  selectInput(inputId="respondent_variable", label = "Select Variable:", choices = respondent.variables, selected = respondent.variables[1]),
+  checkboxInput(inputId = "respondent_show_percentages", label = "Show Percentages", value = TRUE)
+)
+```
+
+Row {data-height=500}
+-------------------------------------
+
+```{r q1_output, fig.align='center'}
+
+ renderPlot({
+  tab <- percentage.table(x = dat.baseline[, .SD[1], by = id.name][, get(input$respondent_variable)])
+  
+  barplot(height = tab, space=0.1, las = 1, main = input$respondent_variable, ylab = "Percentage",
+          xlab = input$respondent_variable, ylim = c(0, 1.2*max(tab, na.rm = TRUE)), col = "dodgerblue")
+  
+  if(input$respondent_show_percentages == TRUE){
+    space_val = 0
+    text(x = -0.4 + 1:length(tab) * (1+space_val), y = tab, labels = sprintf("%.1f%%", tab), pos = 3)
+  }
+})
+```
+
+Q2 Product Engagement
+=====================================  
+
+
+Row {.sidebar}
+-------------------------------------
+Instructions:  Select a single State of Engagement, and any combination of other variables, as long as at least one category from each variable is chosen.  
+Additionally, select the number of products to display in decreasing order. 
+
+
+```{r q2_input}
+
+
+inputPanel(
+  selectInput(inputId="ep_state", label = "Select State of Engagement:", choices = states.of.engagement, 
+              selected = states.of.engagement[1]), 
+    selectizeInput(inputId="income_group", label = "Select Income Group(s):", choices = c( income_group.variables),
+                   selected = income_group.variables[1:5], multiple= TRUE),
+      selectizeInput(inputId="age_group", label = "Select Age Group(s):", choices = c( age_group.variables), 
+                     selected = age_group.variables[1:4], multiple = TRUE),
+        selectizeInput(inputId="gender", label = "Select Gender(s):", choices = c(gender_group.variables), 
+                       selected = gender_group.variables[1:2], multiple = TRUE),
+          selectizeInput(inputId="region", label = "Select Region(s):", choices = c( region.variables), 
+                         selected = region.variables[1:4], multiple = TRUE),
+            selectizeInput(inputId="persona", label = "Select Persona(s):", choices = c(persona.variables),
+                                 selected = persona.variables[1:6], multiple = TRUE),
+              selectInput(inputId = "number", label = "Select Number of Products to Display", choices = 1:20, selected = 5)
+
+  
+)
+```
+
+Row {data-height=500}
+-------------------------------------
+
+```{r q2_output}
+
+renderPlot({  
+
+  
+  
+  numer <- dat[get(input$ep_state) == 1 & get(income_group.name) %in% input$income_group & get(age_group.name) %in% 
+                 input$age_group & get(gender.name) %in% input$gender &  get(region.name) %in% input$region & get(persona.name) 
+                  %in% input$persona ][, .(Num = .N), by = product.name]
+  
+  denoma <- dat[get(income_group.name) %in% input$income_group &  get(age_group.name) %in% input$age_group & get(gender.name) 
+                  %in% input$gender &  get(region.name) %in% input$region & 
+                    get(persona.name) %in% input$persona][get(input$ep_state) == 1 | get(input$ep_state) == 0][, .(Denom = .N), 
+                                                                                                               by= product.name]
+  
+  
+  rate = merge(numer, denoma, by = product.name)
+  rate = rate[, Rate := Num/Denom *100, by = product.name]
+  rate = rate[, lapply(X = .SD, FUN = "round.numerics", digits = 2)]
+  rate = rate[, .(Product, Rate)]
+  setorderv(x = rate, cols = "Rate", order = -1)
+  xx= rate[1:input$number]
+  
+  p <- ggplot(xx, aes(x = reorder(Product, -Rate), Rate)) + geom_bar(stat = "identity", fill = "dodgerblue") + labs(x = "Product", y = "Rate (%)") + ggtitle("Top Products")
+  
+ p + expand_limits(y = c(0,100))
+
+  })
+    
+
+
+```
+
+
+Q3 Overall Brand Perceptions 
+=====================================  
+
+
+Row {.sidebar}
+-------------------------------------
+Instructions: Select any combination of variables, as long as at least one category from each variable is chossten.  
+Additionally, select the number of products to display in decreasing order. 
+```{r q3_input}
+inputPanel(
+   selectizeInput(inputId="income_group1", label = "Select Income Group(s):",  choices = c(income_group.variables), 
+                  selected = income_group.variables[1:5], multiple= TRUE),
+      selectizeInput(inputId="age_group1", label = "Select Age Group(s):", choices = c( age_group.variables), 
+                     selected = age_group.variables[1:4], multiple = TRUE),
+        selectizeInput(inputId="gender1", label = "Select Gender(s):", choices = c(gender_group.variables),
+                       selected = gender_group.variables[1:2], multiple = TRUE),
+          selectizeInput(inputId="region1", label = "Select Region(s):", choices = c( region.variables),
+                         selected = region.variables[1:4], multiple= TRUE),
+            selectizeInput(inputId="persona1", label = "Select Persona(s):", choices = c(persona.variables),
+                                 selected = persona.variables[1:6], multiple = TRUE),
+              numericInput(inputId = "choices",label = "Input # of Brands", value = 5, min = 1, max = 20, step = 1)
+  
+  
+)
+```
+
+Row {data-height=500}
+-------------------------------------
+
+```{r q3_output}
+
+
+renderPlot({
+
+
+inputdat <- dat[get(income_group.name) %in% input$income_group1 & get(age_group.name) %in% input$age_group1 & get(gender.name) %in% input$gender1 &  get(region.name) %in% input$region1 & 
+                  get(persona.name) %in% input$persona1 ]
+
+
+positive.perception1 <- inputdat[, lapply(X = .SD, FUN = "mean", na.rm = TRUE), .SDcols = bp.traits, by = Product][, .SD, .SDcols = positive_bp_traits, by = Product]
+
+negative.perception1 <- inputdat[, lapply(X = .SD, FUN = "mean", na.rm = TRUE), .SDcols = bp.traits, by = Product][, lapply(X = .SD, FUN = "invert_func"), .SDcols = negative_bp_traits, by=Product]
+
+all.perceptions1 <- merge(positive.perception1,negative.perception1)
+
+top5_avg_perception1 <- all.perceptions1[, "Average_Perception" := rowMeans(.SD), .SDcols = bp.traits][order(-rank(Average_Perception))][1:input$choices,.(Product, Average_Perception)][, lapply(X = .SD, FUN = "round.numerics", digits = 2)]
+
+w <- ggplot(top5_avg_perception1, aes(x = reorder(Product, -Average_Perception), Average_Perception)) + geom_bar(stat = "identity", fill = "dodgerblue") + labs(x = "Product", y = "Average") + ggtitle("Top Products")
+
+  w + expand_limits(y = c(0,10))
+
+})
+```
+
+
+Q4 Outcome Gaps 
+=====================================  
+
+Row {.sidebar}
+-------------------------------------
+Instructions:  Select two outcomes to visualize the ranks of products in terms of the difference in averages between the them.  
+The difference in rates is the Average First Outcome - Average Second Outcome per product.
+Select the number of top products to display.  
+Select to have barplot display percentages for each product.
+Select number of digits for the percentages to be rounded to.  1 digit would be like 61.1%,
+
+```{r q4_input}
+
+inputPanel(
+  selectInput(inputId="outcome", label = "Select Outcome:", choices = states.of.engagement, selected = advocacy.name),
+    selectInput(inputId="outcome1", label = "Select Outcome:", choices = states.of.engagement, selected = satisfaction.name),
+      selectInput(inputId = "number1", label = "Select Number of Products to Display", choices = 1:20, selected = 5),
+        checkboxInput(inputId = "show_per", label = "Show Percentages", value = TRUE),
+            sliderInput(inputId = "digits", label = "Select Digits To Round", min = 0, max = 5, value = 1, step = 1)
+
+)
+```
+
+Row {data-height=500}
+-------------------------------------
+
+```{r q4_output}
+# if else needed to calculate outcome on correct scale, depending on which outcome is selected first 
+
+
+renderPlot({
+
+  
+  if(input$show_per == TRUE){
+    
+    
+    
+  if(input$outcome1 == 'Satisfaction'){
+
+  x1 <- dat[, .(X1 = mean(get(input$outcome), na.rm = TRUE)), by = Product]
+  x2 <-dat[, .(X2 = mean(get(input$outcome1), na.rm = TRUE)/10), by = Product]
+  mer <- merge(x1, x2)
+  
+  Gap_df <- mer[, .(Gap = (X1 - X2)*100), by = Product]
+  setorderv(x = Gap_df, cols = "Gap", order = -1)
+  xx <- Gap_df[1:input$number1]
+  ll <- round((xx$Gap), input$digits)
+
+  ggplot(xx, aes(x = reorder(Product, -Gap), Gap)) + geom_bar(stat = "identity", fill = "dodgerblue") + labs(x = "Product", y = "Gap" ,title = "Top Products with Largest Gap")+  geom_label(label =ll)
+    
+  } 
+    
+    
+    else  if(input$outcome == "Satisfaction"){
+  
+  x1 <- dat[, .(X1 = mean(get(input$outcome), na.rm = TRUE)/10), by = Product]
+  x2 <-dat[, .(X2 = mean(get(input$outcome1), na.rm = TRUE)), by = Product]
+  mer <- merge(x1, x2)
+  
+  Gap_df <- mer[, .(Gap = (X1 - X2)*100), by = Product]
+  setorderv(x = Gap_df, cols = "Gap", order = -1)
+  xx <- Gap_df[1:input$number1]  
+  ll <- round((xx$Gap), input$digits)
+
+  ggplot(xx, aes(x = reorder(Product, -Gap), Gap)) + geom_bar(stat = "identity", fill = "dodgerblue") + labs(x = "Product", y = "Gap" ,title = "Top Products with Largest Gap") +  geom_label(label = ll)
+
+  
+  } 
+    
+    
+    else {
+    
+  x1 <- dat[, .(X1 = mean(get(input$outcome), na.rm = TRUE)), by = Product]
+  x2 <-dat[, .(X2 = mean(get(input$outcome1), na.rm = TRUE)), by = Product]
+  mer <- merge(x1, x2)
+
+ Gap_df <- mer[, .(Gap = (X1 - X2)*100), by = Product]
+  setorderv(x = Gap_df, cols = "Gap", order = -1)
+  xx <- Gap_df[1:input$number1]   
+    ll <- round((xx$Gap), input$digits)
+
+  ggplot(xx, aes(x = reorder(Product, -Gap), Gap)) + geom_bar(stat = "identity", fill = "dodgerblue") + labs(x = "Product", y = "Gap" ,title = "Top Products with Largest Gap") + geom_label(label= ll)
+
+          }
+  
+  } 
+  
+  
+  else{
+    
+    
+  if(input$outcome1 == 'Satisfaction'){
+
+  x1 <- dat[, .(X1 = mean(get(input$outcome), na.rm = TRUE)), by = Product]
+  x2 <-dat[, .(X2 = mean(get(input$outcome1), na.rm = TRUE)/10), by = Product]
+  mer <- merge(x1, x2)
+  
+  Gap_df <- mer[, .(Gap = (X1 - X2)*100), by = Product]
+  setorderv(x = Gap_df, cols = "Gap", order = -1)
+  xx <- Gap_df[1:input$number1]
+  #ll <- round((xx$Gap), input$digits)
+
+  ggplot(xx, aes(x = reorder(Product, -Gap), Gap)) + geom_bar(stat = "identity", fill = "dodgerblue") + labs(x = "Product", y = "Gap" ,title = "Top Products with Largest Gap") 
+    
+  } 
+    
+    
+    else  if(input$outcome == "Satisfaction"){
+  
+  x1 <- dat[, .(X1 = mean(get(input$outcome), na.rm = TRUE)/10), by = Product]
+  x2 <-dat[, .(X2 = mean(get(input$outcome1), na.rm = TRUE)), by = Product]
+  mer <- merge(x1, x2)
+  
+  Gap_df <- mer[, .(Gap = (X1 - X2)*100), by = Product]
+  setorderv(x = Gap_df, cols = "Gap", order = -1)
+  xx <- Gap_df[1:input$number1]  
+  #ll <- round((xx$Gap), input$digits)
+
+  ggplot(xx, aes(x = reorder(Product, -Gap), Gap)) + geom_bar(stat = "identity", fill = "dodgerblue") + labs(x = "Product", y = "Gap" ,title = "Top Products with Largest Gap") 
+
+  
+  } 
+    
+    
+    else {
+    
+  x1 <- dat[, .(X1 = mean(get(input$outcome), na.rm = TRUE)), by = Product]
+  x2 <-dat[, .(X2 = mean(get(input$outcome1), na.rm = TRUE)), by = Product]
+  mer <- merge(x1, x2)
+
+ Gap_df <- mer[, .(Gap = (X1 - X2)*100), by = Product]
+  setorderv(x = Gap_df, cols = "Gap", order = -1)
+  xx <- Gap_df[1:input$number1]   
+  #  ll <- round((xx$Gap), input$digits)
+
+  ggplot(xx, aes(x = reorder(Product, -Gap), Gap)) + geom_bar(stat = "identity", fill = "dodgerblue") + labs(x = "Product", y = "Gap" ,title = "Top Products with Largest Gap")
+    
+  }
+  
+    
+  }
+  
+   
+})
+
+
+```
+
+
+Q5 Models
+=====================================  
+
+Row {data-height=500}
+-------------------------------------
+
+
+```{r q5_input}
+
+inputPanel(
+  selectInput(inputId="em_state", label = "State of Engagement:", choices = states.of.engagement, selected = states.of.engagement[1]),
+    selectInput(inputId="em_product", label = "Brand", choices = unique.products, selected = unique.products[1], multiple = TRUE),
+       selectInput(inputId="em_inputs", label = "Choose Inputs:", choices = c(age_group.name, gender.name, region.name, income_group.name, persona.name, bp.traits), selected = c(age_group.name, gender.name, region.name, income_group.name), multiple = TRUE),
+  selectInput(inputId="em_age_group", label = "Age", choices = age_group.variables, selected = age_group.variables, multiple = TRUE),
+  selectInput(inputId = "em_gender", label = "Gender", choices = gender_group.variables, selected = gender_group.variables, multiple = TRUE),
+  selectInput(inputId = "em_income_group", label = "Income", choices = income_group.variables, selected = income_group.variables, multiple = TRUE),
+  selectInput(inputId = "em_region", label = "Region", choices = region.variables, selected = region.variables, multiple = TRUE),
+  selectInput(inputId = "em_persona", label = "Persona", choices = persona.variables, selected = persona.variables, multiple = TRUE)
+)
+```
+
+Row {data-height=500}
+-------------------------------------
+
+```{r q5_output}
+renderDataTable({
+  subdat <- dat[get(product.name) %in% input$em_product & get(age_group.name) %in% input$em_age_group & get(gender.name) %in% input$em_gender & get(income_group.name) %in% input$em_income_group & get(region.name) %in% input$em_region & get(persona.name) %in% input$em_persona]
+  
+  if(input$em_state == satisfaction.name){
+    model.type <- "linear"
+  }
+  if(input$em_state != satisfaction.name){
+    model.type <- "logistic"
+  }
+  
+  res <- fit.model(dt = subdat, outcome.name = input$em_state, input.names = input$em_inputs, model.type = model.type)
+  
+  datatable(data = res)
+})
+```
+
