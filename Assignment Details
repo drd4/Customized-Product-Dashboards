@@ -1,0 +1,145 @@
+Part 1: Summary
+How would you summarize the data? Briefly describe what is measured in the data and provide a summary of the information. You can show a table or graphic, but keep things brief.
+
+This part of the report will be directed to your internal team at the consulting company. It is intended to document the sources of information that were used in the project. It will also describe the data in less technical terms to team members who are not data scientists. If another member of the team joins the project later, they will rely on your descriptions to gain familiarity with the data.  To that end, we recommend providing some instructions that will help other consultants use the information more effectively.
+
+
+Part 2: Specific Questions
+Our prior work has identified specific questions of interest. Please provide these answers in output that is easy to read (e.g. tables or graphs).
+
+This part of the report will be directed to marketing and product managers throughout the client’s company. The idea is to give them the useful information they need to act on the specific questions they posed. Plan your communication accordingly.
+
+Questions
+
+1.  Respondent Variables
+In percentage terms, how were the survey’s respondents divided into categories for the following variables? Hint: Keep in mind that each respondent may appear multiple times in the data set.
+Age Group. The age groups are defined as:
+  At least 18 and under 35;
+  At least 35 and under 50;
+  At least 50 and under 65;
+  At least 65.
+
+Gender
+
+Income Group. The income groups are defined as:
+
+Under 50 thousand;
+
+At least 50 thousand and under 75 thousand;
+
+At least 75 thousand and under 100 thousand;
+
+At least 100 thousand and under 150 thousand;
+
+At least 150 thousand.
+
+Region
+
+Persona
+
+2. Segmented Outcomes
+Part A: What are the top 5 products by Awareness rates in the Northeast?
+Part B: What are the top 5 products by Advocacy rates among females who earn at least $100,000?
+
+3. Overall Brand Perceptions
+What are the top 5 brands by the overall average perceptions?
+
+Evaluating this question can be tricky. Some of the perceptions are for positive traits, and others are for negative traits. The brand with the best overall perception would have the highest scores for the positive traits and the lowest scores for the negative traits. To aggregate these scores, we will follow a number of steps:
+
+For each brand, compute the average score of each brand perception variable. In computing these averages, remove any missing values from the calculations.
+Then, for the questions that assess negative perceptions, invert the scores to place them on a comparable scale with the positive traits. To do this, use the conversion formula:
+Inverted Average Score = 10 - Average Score.
+
+With all of the average scores of each perception now recorded on the same scale, we can aggregate them into one measure, the Overall Average Perception of a product. For each brand, compute the mean of these scores.
+
+Now rank the brands in decreasing order of their Overall Average Perception scores.
+
+Show the results for the top 5 brands.
+
+4. Gaps in Outcomes
+The marketing department wants to identify products with engagement that is underperforming in some ways. The best products should have high rates of engagement across all of the outcomes, but that is not always the case.
+
+For the purposes of this question, we will create a scoring metric that ranges from 0% to 100%. For binary outcomes (awareness, consideration, consumption, and advocacy), the score will be the percentage of the respondents who answered yes to the question among those who were asked. For outcomes on an integer scale (e.g. Satisfaction), the score will be the average value as a percentage of the maximum score. So, for instance, if the average satisfaction for a product is 7 out of 10, then its percentage rating would be 70%.
+
+Part A: Which 5 products have the largest gap between the rate of consumption and the rate of awareness? This would correspond to a formula of Difference = Rate of Consumption - Rate of Awareness.  (Please use this exact formula.)  Display a bar graph showing the 5 largest differences in decreasing sorted order.
+Part B: Which 5 products have the largest gap between the rate of Awareness and the average Satisfaction (in percentage terms)? Here the formula would be Difference = Rate of Awareness - Percentage Average Satisfaction. (Please use this exact formula.)  Display a bar graph showing the 5 largest differences in decreasing sorted order.
+
+5. Aggregated Engagement
+How much does a respondent’s engagement depend on the product, and how much depends on the respondent? One way we might investigate this further is to see whether the respondent’s outcomes in other products has an impact on this one.
+
+For each marketing outcome and product, we will define a user’s aggregated engagement as the average value of that outcome variable on all of the products not being modeled. For instance, consider a model of Awareness on the product Buzzdial. A single user’s aggregated engagement would then be the user’s average awareness on all of the other products (not including Buzzdial). Any missing scores should be removed from the calculation of the aggregated engagement. If a user has no measured scores in the other products, define the aggregated engagement as zero.
+
+Part A: How much impact does respondent’s overall trends in awareness have for that person’s awareness with Buzzdial phones? To answer this question, we want to create a logistic regression model. The outcome will be the respondents’ Awareness of Buzzdial. The variables in the model will include age group, gender, income group, region, persona, and the aggregated engagement (calculated on awareness). Then, fit the logistic regression model. Display a table including the model’s Odds Ratios, 95% confidence intervals for the Odds Ratios, and the p-values.
+Part B: How much impact does respondent’s overall trends in satisfaction have for that person’s satisfaction with Buzzdial phones? To answer this question, we want to create a linear regression model. The outcome will be the respondents’ Satisfaction with Buzzdial. The variables in the model will include age group, gender, income group, region, persona, and the aggregated engagement (computed on satisfaction). Display a table including the model’s coefficients, 95% confidence intervals for the coefficients, and the p-values.
+
+
+
+Part 3: Reporting Engine
+Each of the specific questions in Part 2 can be generalized. A reporting engine can allow a user to select many different outcomes or subgroups to explore. In this portion, we will construct a dynamic reporting engine as a shiny application in R. The sections of the reporting engine should include user interfaces and reactive content for the scenarios presented Part 2.
+
+Between Parts 2 and 3, you will be generating two kinds of reports – one static and one dynamic. Since these reports rely on common data and similar calculations, this is a good opportunity for you to build an infrastructure for the software. To that end, you should create two additional files:
+
+constants.R
+functions.R
+
+
+Then many of the initial commonalities in the two reports can be unified by referring to your constants and functions. For each specific question in Part 2, you should be able to write a single function that can be called to answer it and also be called in the dynamic reporting engine of Part 3.
+
+Your dynamic reporting engine will also be directed to the marketing and product managers throughout the client’s company. The idea is to give them tools that will help them answer novel questions and go beyond the specific information they requested. Plan your communication accordingly.
+
+
+Questions
+
+1. Respondent Variables
+Depict the information produced in Q1 of Part 2. Allow the user to select which variable to explore. Then create a graph that depicts the percentages of respondents in each category for that variable.
+
+2. Segmented Outcomes
+Build a dynamic, visual display ranking the products by their outcomes in the manner of Question 2 of Part 2. The user will make the following selections:
+
+State of engagement: Only a single state may be selected at once.
+
+Other variables: Age Group, Gender, Income Group, Region, Persona
+
+Then, for all of the other variables, any combination of categories may be selected, so long as at least one category from each variable is chosen. For instance, for Gender, the user may select Male only, Female only, or both Male and Female.
+
+Then, the user should be able to select how many products to display. Once a number is selected, the outcome rates should be graphically displayed in sorted decreasing order for the top products in the selected subgroups. If 5 is selected for Awareness, then the 5 products with the highest rates of Awareness for the specified subgroup will be depicted.
+
+3. Overall Brand Perceptions
+Generate a dynamic, graphical display that allows the user to perform a calculation of the Overall Brand Perception in selected subgroups. Much like the previous question, the user may make any combination of selections in the following variables, provided that at least one category of each variable is selected: Age Group, Gender, Income Group, Region, Persona.
+
+Also allow the user to select how many brands should be displayed, with the top k brands depicted in decreasing sorted order. All results should display the overall average perception for the brand.
+
+4. Gaps in Outcomes
+Create a dynamic, graphical display that ranks the products in terms of the difference in averages between any two selected outcomes. The user will be allowed to make the following selections:
+
+First Outcome: One of the outcome variables.
+
+Second Outcome: Another outcome variable.
+
+The difference in rates will be Difference = Average First Outcome - Average Second Outcome per product.
+
+Number of Top Products: The user will select how many products to display.
+
+Display Percentages: If checked, the bargraph will display the percentages for each product.
+
+Digits: How many digits should the percentages be rounded to? 1 digit would be a number like 84.2%.
+
+5. Aggregated Engagement
+Let’s allow the user to build a model including an aggregated outcome for a specific product. The site should include the following features:
+
+The user can select the products (1 or more).
+
+The user can select the state of engagement as the outcome.
+
+The user can select the other variables to include in the model. The list of choices should include the age group, gender, income group, region, persona, brand perceptions, and the Aggregated Engagement. Each person’s aggregated engagement will be calculated as the average score of the selected state of engagement across the measured values of the other products . You can give this variable a name like “Aggregated.Engagement”.
+
+The user’s selections will then be incorporated into a model. For Satisfaction outcomes, use a linear regression. For all of the other outcomes, use a logistic regression. Then create a dynamic table showing the model’s results. For logistic regressions, this must include the Odds Ratios, 95% confidence intervals for the Odds ratios, and the p-values. For linear regressions, this must include the coefficients, 95% confidence intervals for the coefficients, and the p-values.
+
+Part 4: Opportunities
+This part of the report will be directed externally to your client’s senior leadership. Your work will help to determine the future direction of the project and the company’s contract with this client. Plan your communication accordingly.
+
+Questions
+
+How would you build on the reporting capabilities that you have created? What would you design next?
+What are some opportunities to learn valuable information and inform strategic decisions? List a number of questions that you might explore.
+How would you approach other decisionmakers within the client’s organization to assess their priorities and help them better utilize the available information?
